@@ -88,7 +88,7 @@ public class WeinProbe {
 						+ "vorkoster <nummer zwischen 1 und %d> : Liefert die Nummern der Fässer, aus den der Verkoster trinken muss\n"
 						+ "fass <nummer zwischen 1 und %d> : Liefert die Nummern der Verkoster, die aus diesem Fass trinken müssen.\n"
 						+ "Wenn sich alle diese Verkoster vergiften, dann ist das Fass vergiftet\n"
-						+ "vergiftet <vergifteten Verkoster als Binärzahl, z. B. 01 für erster Vorkoster okay, zweiter vergiftet>: Liefert das vergiftete Fass\n"
+						+ "vergiftet <vergifteten Verkoster als Bitkombination, z. B. 01 für erster Vorkoster okay, zweiter vergiftet>: Liefert das vergiftete Fass\n"
 						+ "q : Beenden\n\n" + "Gib jetzt deine Anfrage ein: ", anzahlVorkoster, anzahlFaesser);
 				String command = console.readLine().trim();
 
