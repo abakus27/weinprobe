@@ -34,8 +34,8 @@ public class NumberUtil {
 	public static Set<Integer> bitsSet(BigInteger number) {
 		final Set<Integer> bits = new TreeSet<Integer>();
 
-		for (int i = 0; number.compareTo(BigInteger.ZERO) > 0; i++, number = number.divide(BigInteger.valueOf(2))) {
-			if (number.mod(BigInteger.valueOf(2)).compareTo(BigInteger.ONE) == 0) {
+		for (int i = 0; number.compareTo(BigInteger.ZERO) > 0; i++, number = number.divide(BigInteger.TWO)) {
+			if (number.mod(BigInteger.TWO).compareTo(BigInteger.ONE) == 0) {
 				bits.add(i);
 			}
 		}

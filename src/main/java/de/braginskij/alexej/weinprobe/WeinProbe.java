@@ -338,7 +338,7 @@ public class WeinProbe {
 
 			if (anzahlFaesser == null) {
 				console.writer().format("%s ist keine Ganzzahl!\n\n", anzahlFaesserText);
-			} else if (anzahlFaesser.compareTo(BigInteger.valueOf(1)) < 0
+			} else if (anzahlFaesser.compareTo(BigInteger.ONE) < 0
 					|| anzahlFaesser.compareTo(anzahlFaesserMax) > 0) {
 				console.writer().format("%s ist keine Ganzzahl zwischen 1 und %d!\n\n", anzahlFaesser,
 						anzahlFaesserMax);
@@ -363,7 +363,7 @@ public class WeinProbe {
 		properties.load(WeinProbe.class.getClassLoader().getResourceAsStream("weinprobe.properties"));
 
 		final BigInteger vorkosterAnzahlMax = new BigInteger(properties.getProperty("vorkoster.anzahl.max"));
-		anzahlFaesserMax = BigInteger.TWO.pow(vorkosterAnzahlMax.intValue()).subtract(BigInteger.ONE);
+		anzahlFaesserMax = BigInteger.TWO.pow(vorkosterAnzahlMax.intValue());
 		vorkosterDateiDir = properties.getProperty("vorkoster.datei.dir");
 		vorkosterDateiNameFormat = properties.getProperty("vorkoster.datei.name");
 	}
