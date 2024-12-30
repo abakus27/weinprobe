@@ -86,14 +86,20 @@ public class WeinProbe {
 
 			while (!quit) {
 				console.writer().format("Du hast folgende Möglichkeiten:\n\n"
-						+ "vorkoster <nummer zwischen 0 und %d> : Liefert die Nummern der Fässer, aus den der Verkoster trinken muss\n"
-						+ "0 steht für alle Vorkoster. Die Listen werden in einer Datei abgelegt\n"
-						+ "fass <nummer zwischen 1 und %d> : Liefert die Nummern der Verkoster, die aus diesem Fass trinken müssen.\n"
-						+ "Wenn sich alle diese Verkoster vergiften, dann ist das Fass vergiftet\n"
-						+ "vergiftet <vergifteten Verkoster als Bitkombination, z. B. 01 für erster Vorkoster okay, zweiter vergiftet>: Liefert das vergiftete Fass\n"
-						+ "Wenn weniger Bits angegeben werden als es Vorkoster gibt, wird angenommen, dass die verbliebenen Vorkoster sich nicht vergiftet haben\n"
-						+ "q : Beenden\n\n" + "Gib jetzt deine Anfrage ein: ", anzahlVorkoster, anzahlFaesser);
-				String command = console.readLine().trim();
+						+ "vorkoster <nummer zwischen 0 und %d> : Liefert die Nummern der Fässer, aus den der Verkoster trinken muss." + "\n"
+						+ "0 steht für alle Vorkoster. Die Listen werden in einer Datei abgelegt" + "\n"
+						+ "\n"
+						+ "fass <nummer zwischen 1 und %d> : Liefert die Nummern der Verkoster, die aus diesem Fass trinken müssen." + "\n"
+						+ "Wenn sich alle diese Verkoster vergiften, dann ist das Fass vergiftet" + "\n"
+						+ "\n"						
+						+ "vergiftet <vergifteten Verkoster als Bitkombination, z. B. 01 für erster Vorkoster okay, zweiter vergiftet>: Liefert das vergiftete Fass." + "\n"
+						+ "Wenn weniger Bits angegeben werden als es Vorkoster gibt, wird angenommen, dass die verbliebenen Vorkoster sich nicht vergiftet haben" + "\n"
+						+ "\n"						
+						+ "q : Beenden" 
+						+ "\n"
+						+ "\n" 
+						+ "Gib jetzt deine Anfrage ein: ", anzahlVorkoster, anzahlFaesser);
+				final String command = console.readLine().trim();
 
 				quit = weinProbe.interpretCommand(command, console);
 			}
