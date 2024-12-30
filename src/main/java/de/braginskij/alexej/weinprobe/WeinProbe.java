@@ -2,13 +2,16 @@ package de.braginskij.alexej.weinprobe;
 
 import java.io.Console;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.math.RoundingMode;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.text.MessageFormat;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -18,8 +21,8 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
-import de.braginskij.alexej.math.BigDecimalMath;
 import de.braginskij.alexej.util.NumberUtil;
 
 public class WeinProbe {
@@ -29,22 +32,24 @@ public class WeinProbe {
 	private String commandRegex;
 	private BigInteger anzahlFaesser;
 	private int anzahlVorkoster;
-	private List<Set<BigInteger>> vorkosterZuFass;
+	private static String vorkosterDateiDir;
+	private static String vorkosterDateiNameFormat;
 
 	public WeinProbe(BigInteger anzahlFaesser) throws IOException {
 		super();
 		this.anzahlFaesser = anzahlFaesser;
 
-		mapVorkosterZuFass();
+		anzahlVorkoster = berechneAnzahlVorkoster(anzahlFaesser);
+
 		buildUpCommandRegex();
 	}
 
 	public static int berechneAnzahlVorkoster(final BigInteger anzahlFaesser) {
-		if (anzahlFaesser.compareTo(BigInteger.ONE) == 0) {
-			return 1;
-		} else {
-			return BigDecimalMath.log(new BigDecimal(anzahlFaesser)).divide(BigDecimalMath.log(new BigDecimal(BigInteger.TWO)), 0, RoundingMode.CEILING).intValue();
-		}
+		// Wenn man nur ein Fass testet, dann ist dieses laut Aufgabenstellung
+		// vergiftet. Also sind keine Vorkoster notwendig
+		// Bei Zweier-Potenzen muss dass nummernletzte Fass nicht getestet werden.
+		// Wenn alle Vorkoster sich nicht vergiftet haben, dann ist es vergiftet
+		return anzahlFaesser.subtract(BigInteger.ONE).bitLength();
 	}
 
 	public BigInteger getAnzahlFaesser() {
@@ -57,10 +62,6 @@ public class WeinProbe {
 
 	public String getCommandRegex() {
 		return commandRegex;
-	}
-
-	public Collection<Set<BigInteger>> getVorkosterZuFassMapping() {
-		return Collections.unmodifiableCollection(vorkosterZuFass);
 	}
 
 	public static void main(String[] args) throws IOException {
@@ -85,10 +86,12 @@ public class WeinProbe {
 
 			while (!quit) {
 				console.writer().format("Du hast folgende Möglichkeiten:\n\n"
-						+ "vorkoster <nummer zwischen 1 und %d> : Liefert die Nummern der Fässer, aus den der Verkoster trinken muss\n"
+						+ "vorkoster <nummer zwischen 0 und %d> : Liefert die Nummern der Fässer, aus den der Verkoster trinken muss\n"
+						+ "0 steht für alle Vorkoster. Die Listen werden in einer Datei abgelegt\n"
 						+ "fass <nummer zwischen 1 und %d> : Liefert die Nummern der Verkoster, die aus diesem Fass trinken müssen.\n"
 						+ "Wenn sich alle diese Verkoster vergiften, dann ist das Fass vergiftet\n"
 						+ "vergiftet <vergifteten Verkoster als Bitkombination, z. B. 01 für erster Vorkoster okay, zweiter vergiftet>: Liefert das vergiftete Fass\n"
+						+ "Wenn weniger Bits angegeben werden als es Vorkoster gibt, wird angenommen, dass die verbliebenen Vorkoster sich nicht vergiftet haben\n"
 						+ "q : Beenden\n\n" + "Gib jetzt deine Anfrage ein: ", anzahlVorkoster, anzahlFaesser);
 				String command = console.readLine().trim();
 
@@ -105,7 +108,7 @@ public class WeinProbe {
 		}
 	}
 
-	protected boolean interpretCommand(final String command, final Console console) {
+	protected boolean interpretCommand(final String command, final Console console) throws IOException {
 		final boolean doQuit;
 
 		final Matcher matcher = Pattern.compile(commandRegex).matcher(command);
@@ -138,10 +141,40 @@ public class WeinProbe {
 		return doQuit;
 	}
 
-	protected Set<BigInteger> mapVorkosterZuFass(final int vorkoster) {
-		assert vorkoster > 0 && vorkoster <= vorkosterZuFass.size();
+	protected Set<BigInteger> mapVorkosterZuFaesser(final int vorkoster) {
+		assert vorkoster > 0 && vorkoster <= anzahlVorkoster;
 
-		return Collections.unmodifiableSet(vorkosterZuFass.get(vorkoster - 1));
+		final Set<BigInteger> vorkosterZuFaesser = new TreeSet<>();
+
+		for (BigInteger fassNummer = BigInteger.ONE; fassNummer.compareTo(anzahlFaesser) <= 0; fassNummer = fassNummer
+				.add(BigInteger.ONE)) {
+
+			if (NumberUtil.bitSet(fassNummer, vorkoster - 1)) {
+				vorkosterZuFaesser.add(fassNummer);
+			}
+		}
+
+		return Collections.unmodifiableSet(vorkosterZuFaesser);
+	}
+
+	protected List<Set<BigInteger>> mapVorkosterZuFaesser() {
+
+		final List<Set<BigInteger>> vorkosterZuFass = new ArrayList<Set<BigInteger>>(anzahlVorkoster);
+
+		for (int vorkosterNummer = 0; vorkosterNummer < anzahlVorkoster; vorkosterNummer++) {
+			vorkosterZuFass.add(new TreeSet<BigInteger>());
+		}
+
+		for (BigInteger fassNummer = BigInteger.ONE; fassNummer.compareTo(anzahlFaesser) <= 0; fassNummer = fassNummer
+				.add(BigInteger.ONE)) {
+			final Set<Integer> vorkosterNummern = mapFassZuVorkoster(fassNummer);
+
+			for (final int vorkosterNummer : vorkosterNummern) {
+				vorkosterZuFass.get(vorkosterNummer - 1).add(fassNummer);
+			}
+		}
+
+		return vorkosterZuFass;
 	}
 
 	protected Set<Integer> mapFassZuVorkoster(BigInteger fass) {
@@ -149,8 +182,7 @@ public class WeinProbe {
 		if (fass.compareTo(BigInteger.TWO.pow(anzahlVorkoster)) == 0) {
 			return Collections.emptySet();
 		} else {
-			return NumberUtil.bitsSet(fass).stream().map(vk -> vk + 1)
-					.collect(Collectors.toCollection(TreeSet::new));
+			return NumberUtil.bitsSet(fass).stream().map(vk -> vk + 1).collect(Collectors.toCollection(TreeSet::new));
 		}
 	}
 
@@ -169,19 +201,19 @@ public class WeinProbe {
 				"((?<quit>q)" + "|((?<vorkoster>vorkoster)[\\s]*(?<vorkosterNummer>[\\d]{1,%d}))"
 						+ "|((?<fass>fass)[\\s]*(?<fassNummer>[\\d]{1,%d}))"
 						+ "|((?<vergiftet>vergiftet)[\\s]*(?<vergiftetKombination>[01]{1,%d})))",
-						NumberUtil.computeNumberOfPlaces(BigInteger.valueOf(anzahlVorkoster), 10), NumberUtil.computeNumberOfPlaces(anzahlFaesser, 10), anzahlVorkoster);
+				BigInteger.valueOf(anzahlVorkoster).toString().length(), anzahlFaesser.toString().length(),
+				anzahlVorkoster);
 	}
 
-	private void handleVorkoster(final Console console, final String vorkosterNummerText) {
+	private void handleVorkoster(final Console console, final String vorkosterNummerText) throws IOException {
 		if (vorkosterNummerText != null) {
 			try {
 				final int vorkosterNummer = Integer.valueOf(vorkosterNummerText);
 
-				if (vorkosterNummer > 0 && vorkosterNummer <= anzahlVorkoster) {
-					console.format("\n" + "Vorkosternummer %d muss aus folgenden Fässern probieren: %s\n\n",
-							vorkosterNummer, mapVorkosterZuFass(vorkosterNummer).toString());
+				if (vorkosterNummer >= 0 && vorkosterNummer <= anzahlVorkoster) {
+					handleRegularVorkoster(console, vorkosterNummer);
 				} else {
-					console.format("\n" + "Vorkosternummer %d liegt nicht zwischen 1 und %d\n\n", vorkosterNummer,
+					console.format("\n" + "Vorkosternummer %d liegt nicht zwischen 0 und %d\n\n", vorkosterNummer,
 							anzahlVorkoster);
 
 				}
@@ -189,6 +221,55 @@ public class WeinProbe {
 				console.format("\n" + "Vorkoster-Nummer %s ist ungültig\n\n", vorkosterNummerText);
 			}
 		}
+	}
+
+	private void handleRegularVorkoster(final Console console, final int vorkosterNummer) throws IOException {
+
+		if (vorkosterNummer == 0) {
+			writeVorkosterFile(console, mapVorkosterZuFaesser());
+		} else {
+			final Set<BigInteger> vorkostersFaesser = mapVorkosterZuFaesser(vorkosterNummer);
+
+			if (vorkostersFaesser.size() <= 100) {
+				console.format("\n" + "Vorkosternummer %d muss aus folgenden Fässern probieren: %s\n\n",
+						vorkosterNummer, vorkostersFaesser.toString());
+			} else {
+				writeVorkosterFile(console, vorkosterNummer, vorkostersFaesser);
+			}
+		}
+	}
+
+	private void writeVorkosterFile(final Console console, List<Set<BigInteger>> vorkosterZuFassMapping)
+			throws IOException {
+		final String vorkosterText = IntStream.range(0, vorkosterZuFassMapping.size())
+				.mapToObj(i -> "Vorkoster " + (i + 1) + ": " + vorkosterZuFassMapping.get(i).toString() + "\n")
+				.collect(Collectors.joining());
+
+		final Path vorkosterDateiDirPfad = Paths.get(vorkosterDateiDir);
+		Files.createDirectories(vorkosterDateiDirPfad);
+
+		final String vorkosterDateiName = MessageFormat.format(vorkosterDateiNameFormat, "alle",
+				Instant.now().toEpochMilli());
+		final Path vorkosterDateiPfad = vorkosterDateiDirPfad.resolve(vorkosterDateiName);
+
+		Files.writeString(vorkosterDateiPfad, vorkosterText, StandardOpenOption.CREATE);
+
+		console.format("\n" + "Vorkoster wurden in die Datei %s geschrieben" + "\n\n", vorkosterDateiPfad);
+	}
+
+	private void writeVorkosterFile(final Console console, final int vorkosterNummer,
+			final Set<BigInteger> vorkostersFaesser) throws IOException {
+		final Path vorkosterDateiDirPfad = Paths.get(vorkosterDateiDir);
+		Files.createDirectories(vorkosterDateiDirPfad);
+
+		final String vorkosterDateiName = MessageFormat.format(vorkosterDateiNameFormat, vorkosterNummer,
+				Instant.now().toEpochMilli());
+		final Path vorkosterDateiPfad = vorkosterDateiDirPfad.resolve(vorkosterDateiName);
+
+		Files.writeString(vorkosterDateiPfad,
+				"Vorkoster %d %s".formatted(vorkosterNummer, vorkostersFaesser.toString()), StandardOpenOption.CREATE);
+
+		console.format("\n" + "Vorkoster wurden in die Datei %s geschrieben" + "\n\n", vorkosterDateiPfad);
 	}
 
 	private void handleFass(final Console console, final String fassNummerText) {
@@ -238,7 +319,7 @@ public class WeinProbe {
 	}
 
 	private static BigInteger leseAnzahlFaesserEin(Console console) throws IOException {
-		leseMaxAnzahlVonFaessern();
+		leseProperties();
 
 		BigInteger anzahlFaesser;
 
@@ -251,7 +332,8 @@ public class WeinProbe {
 
 			if (anzahlFaesser == null) {
 				console.writer().format("%s ist keine Ganzzahl!\n\n", anzahlFaesserText);
-			} else if (anzahlFaesser.compareTo(BigInteger.valueOf(1)) < 0  || anzahlFaesser.compareTo(anzahlFaesserMax) > 0) {
+			} else if (anzahlFaesser.compareTo(BigInteger.valueOf(1)) < 0
+					|| anzahlFaesser.compareTo(anzahlFaesserMax) > 0) {
 				console.writer().format("%s ist keine Ganzzahl zwischen 1 und %d!\n\n", anzahlFaesser,
 						anzahlFaesserMax);
 				anzahlFaesser = null;
@@ -269,30 +351,14 @@ public class WeinProbe {
 		}
 	}
 
-	private static void leseMaxAnzahlVonFaessern() throws IOException {
+	private static void leseProperties() throws IOException {
 		final Properties properties = new Properties();
 
 		properties.load(WeinProbe.class.getClassLoader().getResourceAsStream("weinprobe.properties"));
 
 		final BigInteger vorkosterAnzahlMax = new BigInteger(properties.getProperty("vorkoster.anzahl.max"));
 		anzahlFaesserMax = BigInteger.TWO.pow(vorkosterAnzahlMax.intValue()).subtract(BigInteger.ONE);
-	}
-
-	private void mapVorkosterZuFass() {
-		anzahlVorkoster = berechneAnzahlVorkoster(anzahlFaesser);
-
-		vorkosterZuFass = new ArrayList<Set<BigInteger>>(anzahlVorkoster);
-
-		for (int vorkosterNummer = 0; vorkosterNummer < anzahlVorkoster; vorkosterNummer++) {
-			vorkosterZuFass.add(new TreeSet<BigInteger>());
-		}
-
-		for (BigInteger fassNummer = BigInteger.ONE; fassNummer.compareTo(anzahlFaesser) <= 0; fassNummer = fassNummer.add(BigInteger.ONE)) {
-			final Set<Integer> vorkosterNummern = mapFassZuVorkoster(fassNummer);
-
-			for (final int vorkosterNummer : vorkosterNummern) {
-				vorkosterZuFass.get(vorkosterNummer - 1).add(fassNummer);
-			}
-		}
+		vorkosterDateiDir = properties.getProperty("vorkoster.datei.dir");
+		vorkosterDateiNameFormat = properties.getProperty("vorkoster.datei.name");
 	}
 }

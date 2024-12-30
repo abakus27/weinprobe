@@ -2,6 +2,7 @@ package de.braginskij.alexej.weinprobe;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.doNothing;
@@ -72,14 +73,14 @@ class WeinProbeTest {
 
 	@ParameterizedTest
 	@MethodSource
-	void mapVorkosterZuFass(final int vorkoster, final Set<BigInteger> vorkosterZuFass) throws IOException {
+	void mapVorkosterZuFaesser(final int vorkoster, final Set<BigInteger> vorkosterZuFass) throws IOException {
 
 		final WeinProbe weinProbe = new WeinProbe(BigInteger.valueOf(100));
 
-		assertThat(weinProbe.mapVorkosterZuFass(vorkoster), containsInAnyOrder(vorkosterZuFass.toArray()));
+		assertThat(weinProbe.mapVorkosterZuFaesser(vorkoster), containsInAnyOrder(vorkosterZuFass.toArray()));
 	}
 
-	static Stream<Arguments> mapVorkosterZuFass() {
+	static Stream<Arguments> mapVorkosterZuFaesser() {
 		return Stream.of(Arguments.of(1, Stream.iterate(BigInteger.ONE, i -> i.add(BigInteger.valueOf(2))).limit(50).collect(Collectors.toSet())),
 				Arguments.of(7, Stream.iterate(BigInteger.valueOf(64), i -> i.add(BigInteger.valueOf(1))).limit(37).collect(Collectors.toSet())));
 	}
@@ -102,10 +103,11 @@ class WeinProbeTest {
 	}
 
 	@Test
-	void getVorkosterZuFassMapping() throws IOException {
+	void mapAlleVorkosterZuFaesser() throws IOException {
 		final WeinProbe weinProbe = new WeinProbe(BigInteger.valueOf(100));
 
-		weinProbe.getVorkosterZuFassMapping().forEach(System.out::println);
+		assertThat(weinProbe.mapVorkosterZuFaesser().size(), is(weinProbe.getAnzahlVorkoster()));
+		weinProbe.mapVorkosterZuFaesser().forEach(vkf -> assertThat(vkf.size(), lessThanOrEqualTo(50)));
 	}
 
 	@Nested
